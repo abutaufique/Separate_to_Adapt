@@ -8,7 +8,7 @@ from torch.autograd.variable import *
 import os
 from collections import Counter
 import matplotlib.pyplot as plt
-
+import pdb
 
 class Accumulator(dict):
     def __init__(self, name_or_names, accumulate_fn=np.concatenate):
@@ -141,6 +141,7 @@ class Logger(object):
         if clear:
             os.system('rm %s -r'%log_dir)
         tl.files.exists_or_mkdir(log_dir)
+        #self.writer = tf.summary.SummaryWriter()
         self.writer = tf.summary.FileWriter(log_dir)
         self.step = 0
         self.log_dir = log_dir

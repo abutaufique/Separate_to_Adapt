@@ -17,7 +17,7 @@ class BaseFeatureExtractor(nn.Module):
         pass
 
 resnet_dict = {"resnet18":models.resnet18, "resnet34":models.resnet34, "resnet50":models.resnet50, "resnet101":models.resnet101, "resnet152":models.resnet152}
-
+device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 class ResNetFc(BaseFeatureExtractor):
     def __init__(self, model_name='resnet50',model_path=None, normalize=True):
         super(ResNetFc, self).__init__()
@@ -48,15 +48,13 @@ class ResNetFc(BaseFeatureExtractor):
 
     def get_mean(self):
         if self.mean is False:
-            self.mean = Variable(
-                torch.from_numpy(np.asarray([0.485, 0.456, 0.406], dtype=np.float32).reshape((1, 3, 1, 1)))).cuda()
-        return self.mean
+            self.mean = torch.from_numpy(np.asarray([0.485, 0.456, 0.406], dtype=np.float32).reshape((1, 3, 1, 1)))
+        return self.mean.to(device)
 
     def get_std(self):
         if self.std is False:
-            self.std = Variable(
-                torch.from_numpy(np.asarray([0.229, 0.224, 0.225], dtype=np.float32).reshape((1, 3, 1, 1)))).cuda()
-        return self.std
+            self.std = torch.from_numpy(np.asarray([0.229, 0.224, 0.225], dtype=np.float32).reshape((1, 3, 1, 1)))
+        return self.std.to(device)
 
     def forward(self, x):
         if self.normalize:

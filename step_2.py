@@ -14,7 +14,7 @@ def transform(data, label, is_train):
     data = np.transpose(data, [2, 0, 1])
     data = np.asarray(data, np.float32) / 255.0
     return data, label
-ds = FileListDataset('/home/youkaichao/data/office/amazon_shared_list.txt', '/home/youkaichao/data/office/', transform=transform, skip_pred=skip, is_train=True, imsize=256)
+ds = FileListDataset('/home/at7133/Research/Domain_adaptation/dataset/amazon.txt', '/home/youkaichao/data/office/', transform=transform, skip_pred=skip, is_train=True, imsize=256)
 source_train = CustomDataLoader(ds, batch_size=batch_size, num_threads=2)
 
 def transform(data, label, is_train):
@@ -26,7 +26,7 @@ def transform(data, label, is_train):
     data = np.transpose(data, [2, 0, 1])
     data = np.asarray(data, np.float32) / 255.0
     return data, label
-ds1 = FileListDataset('/home/youkaichao/data/office/webcam_test_list.txt', '/home/youkaichao/data/office', transform=transform, skip_pred=skip, is_train=True, imsize=256)
+ds1 = FileListDataset('/home/at7133/Research/Domain_adaptation/dataset/webcam.txt', '/home/at7133/Research/Domain_adaptation/dataset/office', transform=transform, skip_pred=skip, is_train=True, imsize=256)
 target_train = CustomDataLoader(ds1, batch_size=batch_size, num_threads=2)
 
 def transform(data, label, is_train):
@@ -35,7 +35,7 @@ def transform(data, label, is_train):
     data = np.transpose(data, [2, 0, 1])
     data = np.asarray(data, np.float32) / 255.0
     return data, label
-ds2 = FileListDataset('/home/youkaichao/data/office/webcam_test_list.txt', '/home/youkaichao/data/office', transform=transform, skip_pred=skip, is_train=False, imsize=256)
+ds2 = FileListDataset('/home/at7133/Research/Domain_adaptation/dataset/webcam.txt', '/home/at7133/Research/Domain_adaptation/dataset/office', transform=transform, skip_pred=skip, is_train=False, imsize=256)
 target_test = CustomDataLoader(ds2, batch_size=batch_size, num_threads=2)
 
 setGPU('0')
@@ -46,7 +46,7 @@ discriminator_t = CLS_0(2048,2,bottle_neck_dim = 256).cuda()
 #----------------------------load the known/unknown discriminator
 discriminator_t.load_state_dict(torch.load('discriminator_a.pkl'))
 discriminator = LargeAdversarialNetwork(256).cuda()
-feature_extractor = ResNetFc(model_name='resnet50',model_path='/home/youkaichao/data/pytorchModels/resnet50.pth')
+feature_extractor = ResNetFc(model_name='resnet50',model_path='/home/at7133/Research/Domain_adaptation/Separate_to_Adapt/resnet50.pth')
 cls = CLS(feature_extractor.output_num(), 11, bottle_neck_dim=256)
 net = nn.Sequential(feature_extractor, cls).cuda()
 
@@ -153,6 +153,7 @@ while k <400:
 torch.cuda.empty_cache()
 
 # =================================evaluation
+net.load_state_dict(torch.load('classifier.pth'))
 with TrainingModeManager([feature_extractor,discriminator_t, cls], train=False) as mgr, Accumulator(['predict_prob','dp','predict_index', 'label']) as accumulator:
     for (i, (im, label)) in enumerate(target_test.generator()):
 
@@ -167,12 +168,17 @@ with TrainingModeManager([feature_extractor,discriminator_t, cls], train=False) 
         if i % 10 == 0:
             print(i)
 
+def SaveModel(PATH):
+    torch.save(net.state_dict(), PATH)
+SaveModel('classifier.pth')
+
 for x in accumulator.keys():
     globals()[x] = accumulator[x]
 
 y_true = label.flatten()
 y_pred = predict_index.flatten()
-m = extended_confusion_matrix(y_true, y_pred, true_labels=range(10)+range(20,31), pred_labels=range(11))
+m = extended_confusion_matrix(y_true, y_pred, true_labels=list(range(10))+list(range(20,31)),
+        pred_labels=list(range(11)))
 
 cm = m
 cm = cm.astype(np.float) / np.sum(cm, axis=1, keepdims=True)

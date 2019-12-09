@@ -1,0 +1,6 @@
+torch
+tensorflow-gpu==1.14
+tensorlayer==1.11
+tensorboard==1.14
+torchvision
+
