@@ -3,3 +3,4 @@ venv313
 *.pyc
 log
 *.pkl
+*.swp

@@ -8,36 +8,39 @@ import pdb
 def skip(data, label, is_train):
     return False
 batch_size = 32
-
+SHARED_CLASSES = 5
+TOTAL_CLASSES = 10
 def transform(data, label, is_train):
-    label = one_hot(11, label)
+    label = one_hot(SHARED_CLASSES+1, label)
     data = tl.prepro.crop(data, 224, 224, is_random=is_train)
     data = np.transpose(data, [2, 0, 1])
     data = np.asarray(data, np.float32) / 255.0
     return data, label
-ds = FileListDataset('/home/at7133/Research/Domain_adaptation/dataset/amazon.txt',
-        '/home/at7133/Research/Domain_adaptation/dataset/office', transform=transform, skip_pred=skip, is_train=True, imsize=256)
+ds = FileListDataset('/home/at7133/Research/Domain_adaptation/dataset/AID.txt',
+        '/home/at7133/Research/Domain_adaptation/dataset/AID', transform=transform, skip_pred=skip, is_train=True, imsize=256)
 source_train = CustomDataLoader(ds, batch_size=batch_size, num_threads=2)
 
 def transform(data, label, is_train):
-    if label in range(10):
-        label = one_hot(11, label)
+    if label in range(SHARED_CLASSES):
+        label = one_hot(SHARED_CLASSES+1, label)
     else:
-        label = one_hot(11,10)
+        label = one_hot(SHARED_CLASSES+1, SHARED_CLASSES)
     data = tl.prepro.crop(data, 224, 224, is_random=is_train)
     data = np.transpose(data, [2, 0, 1])
     data = np.asarray(data, np.float32) / 255.0
     return data, label
-ds1 = FileListDataset('/home/at7133/Research/Domain_adaptation/dataset/webcam.txt', '/home/at7133/Research/Domain_adaptation/dataset/office', transform=transform, skip_pred=skip, is_train=True, imsize=256)
+ds1 = FileListDataset('/home/at7133/Research/Domain_adaptation/dataset/UCM.txt',
+        '/home/at7133/Research/Domain_adaptation/dataset/UCM', transform=transform, skip_pred=skip, is_train=True, imsize=256)
 target_train = CustomDataLoader(ds1, batch_size=batch_size, num_threads=2)
 
 def transform(data, label, is_train):
-    label = one_hot(31,label)
+    label = one_hot(TOTAL_CLASSES,label)
     data = tl.prepro.crop(data, 224, 224, is_random=is_train)
     data = np.transpose(data, [2, 0, 1])
     data = np.asarray(data, np.float32) / 255.0
     return data, label
-ds2 = FileListDataset('/home/at7133/Research/Domain_adaptation/dataset/webcam.txt', '/home/at7133/Research/Domain_adaptation/dataset/office', transform=transform, skip_pred=skip, is_train=False, imsize=256)
+ds2 = FileListDataset('/home/at7133/Research/Domain_adaptation/dataset/UCM.txt',
+        '/home/at7133/Research/Domain_adaptation/dataset/UCM', transform=transform, skip_pred=skip, is_train=False, imsize=256)
 target_test = CustomDataLoader(ds2, batch_size=batch_size, num_threads=2)
 
 setGPU('0')
@@ -45,10 +48,10 @@ log = Logger('log/step_1', clear=True)
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 discriminator_t = CLS_0(2048,2,bottle_neck_dim = 256)
 discriminator_t.to(device)
-discriminator_p = Discriminator(n = 10)
+discriminator_p = Discriminator(n = SHARED_CLASSES)
 discriminator_p.to(device)
 feature_extractor = ResNetFc(model_name='resnet50',model_path='/home/at7133/Research/Domain_adaptation/Separate_to_Adapt/resnet50.pth')
-cls = CLS(feature_extractor.output_num(), 11, bottle_neck_dim=256)
+cls = CLS(feature_extractor.output_num(), SHARED_CLASSES+1, bottle_neck_dim=256)
 net = nn.Sequential(feature_extractor, cls)
 net.to(device)
 scheduler = lambda step, initial_lr : inverseDecaySheduler(step, initial_lr, gamma=10, power=0.75, max_iter=10000)
@@ -89,7 +92,7 @@ while k <500:
 
         # =========================loss function
         ce = CrossEntropyLoss(label_source, predict_prob_source)
-        d1 = BCELossForMultiClassification(label_source[:,0:10],p0)
+        d1 = BCELossForMultiClassification(label_source[:,0:SHARED_CLASSES],p0)
         
         with OptimizerManager([optimizer_cls, optimizer_discriminator_p]):
             loss = ce + d1  
@@ -138,7 +141,7 @@ while k <400:
 
         # =========================loss function
         ce = CrossEntropyLoss(label_source, predict_prob_source)
-        d1 = BCELossForMultiClassification(label_source[:,0:10],p0)
+        d1 = BCELossForMultiClassification(label_source[:,0:SHARED_CLASSES],p0)
         d2 = CrossEntropyLoss(torch.from_numpy(np.concatenate((np.ones((2,1)), np.zeros((2,1))), axis =
             -1).astype('float32')).to(device),pred00)
         d2 += CrossEntropyLoss(torch.from_numpy(np.concatenate((np.zeros((2,1)), np.ones((2,1))), axis =
